@@ -1,19 +1,27 @@
 package cl.inacap.agenda;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Person;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
 import com.google.firebase.FirebaseApp;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
+import java.util.ArrayList;
 import java.util.UUID;
 
 import cl.inacap.agenda.modelo.Persona;
@@ -24,6 +32,10 @@ public class MainActivity extends AppCompatActivity {
     private ListView lvPersonas;
     private FirebaseDatabase firebaseDatabase;
     private DatabaseReference databaseReference;
+    private ArrayList<Persona> listaPersonas = new ArrayList<>();
+    private ArrayAdapter<Persona> personaArrayAdapter;
+    private Persona personaSeleccionada;
+
 
 
 
@@ -40,6 +52,42 @@ public class MainActivity extends AppCompatActivity {
         lvPersonas=(ListView) findViewById(R.id.lv_datosPersonas);
 
         inicializarFirebase();
+
+        listarDatos();
+        lvPersonas.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                personaSeleccionada = (Persona) adapterView.getItemAtPosition(i);
+                etNombreP.setText(personaSeleccionada.getNombre());
+                etApellidoP.setText(personaSeleccionada.getApellido());
+                etCorreoP.setText(personaSeleccionada.getCorreo());
+                etPasswordP.setText(personaSeleccionada.getPassword());
+            }
+        });
+
+    }
+
+    private void listarDatos() {
+        databaseReference.child("Persona").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                // Monitorea si cambia los datos y los muestra
+                listaPersonas.clear(); // Limpiamos el ArrayList
+                for(DataSnapshot obj: snapshot.getChildren()){
+                    Persona p = obj.getValue(Persona.class);
+                    listaPersonas.add(p);
+                }
+                personaArrayAdapter = new ArrayAdapter<Persona>(MainActivity.this, android.R.layout.simple_list_item_1,listaPersonas);
+                lvPersonas.setAdapter(personaArrayAdapter);
+
+
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                // Monitorea si se cancela la accion
+            }
+        }); // child es para cargar los datos de la DB
     }
 
     private void inicializarFirebase() {
@@ -96,10 +144,24 @@ public class MainActivity extends AppCompatActivity {
 
 
             case R.id.icon_delete:
-
+                Persona pe = new Persona();
+                pe.setUid(personaSeleccionada.getUid());
+                databaseReference.child("Persona").child(pe.getUid()).removeValue();
+                limpiar();
                 Toast.makeText(this, "Eliminado", Toast.LENGTH_SHORT).show();
                 break;
+
             case R.id.icon_save:
+                Persona p =new Persona();
+                p.setUid(personaSeleccionada.getUid());
+                p.setNombre(personaSeleccionada.getNombre());
+                p.setApellido(personaSeleccionada.getApellido());
+                p.setCorreo(personaSeleccionada.getCorreo());
+                p.setPassword(personaSeleccionada.getPassword());
+
+                databaseReference.child("Persona").child(p.getUid()).setValue(p);
+                limpiar();
+
                 Toast.makeText(this, "Guardado", Toast.LENGTH_SHORT).show();
                 break;
 
